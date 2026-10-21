@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Showreel — born to be wild, born to be tech</title>
+<style>
+  @font-face { font-family: "SG"; src: url("fonts/space-grotesk-latin-wght-normal.woff2"); font-weight: 300 700; }
+  @font-face { font-family: "JB"; src: url("fonts/jetbrains-mono-latin-wght-normal.woff2"); font-weight: 100 800; }
+  html, body { margin: 0; background: #08080a; height: 100%; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; background: #08080a; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+/* ------------------------------------------------------------------
+   Showreel 15s — "born to be wild, born to be tech"
+   Tutto è una funzione pura del tempo: renderFrame(t) → pixel.
+   Così il live preview e il render offline (frame per frame) coincidono.
+------------------------------------------------------------------- */
+const W = 1920, H = 1080, DUR = 15;
+const C = { bg: "#08080a", fg: "#f4f1ea", wild: "#ff5a1f", tech: "#2dffb2", dim: "#8a8a8f" };
+const SANS = '"SG", system-ui, sans-serif';
+const MONO = '"JB", ui-monospace, monospace';
+
+const cv = document.getElementById("c");
+const g = cv.getContext("2d");
+
+/* ---------- utils ---------- */
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const E = {
+  outCubic: (x) => 1 - Math.pow(1 - x, 3),
+  inCubic: (x) => x * x * x,
+  inOutCubic: (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+  outExpo: (x) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
+  inOutExpo: (x) => (x === 0 ? 0 : x === 1 ? 1 : x < 0.5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2),
+  outBack: (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+};
+function mulberry(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+function mixColor(a, b, k) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `rgb(${pa.map((v, i) => Math.round(lerp(v, pb[i], k))).join(",")})`;
+}
+
+/* ---------- particelle: "wild" (organiche) ↔ "tech" (griglia) ---------- */
+const COLS = 44, ROWS = 20, N = COLS * ROWS;
+const rnd = mulberry(92);
+const P = Array.from({ length: N }, (_, i) => {
+  const c = i % COLS, r = Math.floor(i / COLS);
+  return {
+    a: rnd() * Math.PI * 2,
+    v: 250 + Math.pow(rnd(), 0.6) * 1300,
+    ph: rnd() * 6.283, f: 0.4 + rnd() * 1.3, amp: 20 + rnd() * 90,
+    s: 1.2 + rnd() * 3.2,
+    gx: 60 + (c / (COLS - 1)) * (W - 120),
+    gy: 70 + (r / (ROWS - 1)) * (H - 140),
+  };
+});
+const BURST = 0.9; // istante dello "slam"
+function wildPos(p, t) {
+  const tau = Math.max(0, t - BURST);
+  const R = p.v * E.outExpo(clamp(tau / 1.6)) * (1 + 0.04 * tau);
+  const sw = p.a + Math.sin(t * p.f + p.ph) * 0.25 + tau * 0.05 * (p.ph > 3 ? 1 : -1);
+  return [W / 2 + Math.cos(sw) * R + Math.sin(t * p.f * 1.7 + p.ph) * p.amp, H / 2 + Math.sin(sw) * R * 0.78 + Math.cos(t * p.f * 1.3 + p.ph) * p.amp];
+}
+function drawParticles(t, mix, alpha, color, clip) {
+  if (alpha <= 0.001) return;
+  g.save();
+  if (clip) { g.beginPath(); g.rect(clip[0], clip[1], clip[2], clip[3]); g.clip(); }
+  g.globalAlpha = alpha;
+  for (let i = 0; i < N; i++) {
+    const p = P[i];
+    // la convergenza alla griglia è scaglionata per riga → effetto "onda"
+    const local = clamp(mix * 1.6 - (Math.floor(i / COLS) / ROWS) * 0.6);
+    const k = E.inOutCubic(local);
+    const [wx, wy] = wildPos(p, t);
+    const [wx0, wy0] = wildPos(p, t - 0.045);
+    let x = lerp(wx, p.gx, k), y = lerp(wy, p.gy, k);
+    const x0 = lerp(wx0, p.gx, k), y0 = lerp(wy0, p.gy, k);
+    if (t < BURST) { x = W / 2; y = H / 2; }
+    if (k < 0.98) {
+      g.strokeStyle = color; g.lineWidth = p.s * 0.8;
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x, y); g.stroke();
+    }
+    g.fillStyle = k > 0.5 ? mixColor(C.wild, C.tech, (k - 0.5) * 2) : color;
+    const s = lerp(p.s, 4, k);
+    if (k > 0.6) g.fillRect(x - s / 2, y - s / 2, s, s);
+    else { g.beginPath(); g.arc(x, y, s, 0, 6.283); g.fill(); }
+  }
+  g.restore();
+}
+function drawGridLines(alpha, reveal) {
+  if (alpha <= 0.001) return;
+  g.save(); g.globalAlpha = alpha; g.strokeStyle = C.tech; g.lineWidth = 1;
+  for (let c = 0; c < COLS; c += 1) {
+    const x = P[c].gx; g.beginPath(); g.moveTo(x, 70); g.lineTo(x, lerp(70, H - 70, reveal)); g.stroke();
+  }
+  g.restore();
+}
+
+/* ---------- testo ---------- */
+function text(str, x, y, { size = 100, font = SANS, weight = 700, color = C.fg, align = "center", ls = 0, alpha = 1, stroke = null, lw = 2 } = {}) {
+  g.save();
+  g.font = `${weight} ${size}px ${font}`;
+  g.letterSpacing = `${ls}px`;
+  g.textAlign = align; g.textBaseline = "alphabetic"; g.globalAlpha = alpha;
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.strokeText(str, x, y); }
+  else { g.fillStyle = color; g.fillText(str, x, y); }
+  g.restore();
+}
+function measure(str, size, font = SANS, weight = 700, ls = 0) {
+  g.save(); g.font = `${weight} ${size}px ${font}`; g.letterSpacing = `${ls}px`;
+  const w = g.measureText(str).width; g.restore(); return w;
+}
+const GLYPHS = "01{}<>/\\#$%&*+=?";
+const scramble = (i, t) => GLYPHS[Math.floor(hash(i * 13.7 + Math.floor(t * 30)) * GLYPHS.length)];
+
+/* ---------- scene ---------- */
+const CUTS = [3.0, 5.5, 9.0, 11.5, 13.5];
+const CUT_COL = [C.wild, C.tech, C.wild, C.tech, C.fg];
+
+// A — WILD (0 → 3.0)
+function sceneA(t) {
+  drawParticles(t, 0, 1, C.wild);
+  // pre-roll: linea di scansione + punto
+  if (t < BURST + 0.1) {
+    const k = E.outExpo(prog(t, 0.05, 0.8));
+    g.fillStyle = C.fg; g.fillRect(W / 2 - 500 * k, H / 2 - 1.5, 1000 * k, 3);
+    g.fillStyle = C.wild; g.beginPath(); g.arc(W / 2, H / 2, 6 + 10 * Math.sin(t * 20) * 0.3 * (1 - prog(t, 0.7, 0.9)), 0, 6.283); g.fill();
+  }
+  // BORN TO BE (scrittura lettera per lettera)
+  const s1 = "BORN TO BE";
+  const n = Math.floor(prog(t, 0.25, 0.85) * s1.length);
+  text(s1.slice(0, n), W / 2, 235, { size: 64, font: MONO, weight: 600, ls: 22, color: C.fg, alpha: 1 });
+  // WILD slam
+  const k = prog(t, BURST, BURST + 0.38);
+  if (k > 0) {
+    const sc = lerp(2.2, 1, E.outBack(k)); const a = clamp(k * 4);
+    g.save(); g.translate(W / 2, 700); g.scale(sc, sc);
+    const glitch = t < BURST + 0.7 ? 1 - prog(t, BURST, BURST + 0.7) : 0;
+    for (let s = 0; s < 7; s++) {
+      const y0 = -400 + s * 120, off = (hash(s * 3 + Math.floor(t * 30)) - 0.5) * 160 * glitch;
+      g.save(); g.beginPath(); g.rect(-1100, y0, 2200, 122); g.clip(); g.translate(off, 0);
+      text("WILD", 0, 0, { size: 560, weight: 700, color: C.wild, alpha: a, ls: -14 });
+      g.restore();
+    }
+    g.restore();
+  }
+}
+
+// B — WILD → TECH (3.0 → 5.5)
+function sceneB(t) {
+  const lt = t - CUTS[0];
+  const mix = prog(t, 3.0, 4.6);
+  drawParticles(t, mix, 1, C.wild);
+  drawGridLines(0.14, E.outCubic(prog(t, 3.8, 5.0)));
+  text("BORN TO BE", W / 2, 235, { size: 64, font: MONO, weight: 600, ls: 22 });
+  const from = "WILD", to = "TECH", size = 560, ls = -14;
+  const wFrom = measure(from, size, SANS, 700, ls), wTo = measure(to, size, SANS, 700, ls);
+  // larghezza interpolata, lettera per lettera
+  const total = lerp(wFrom, wTo, E.inOutCubic(prog(lt, 0.3, 1.3)));
+  let x = W / 2 - total / 2;
+  const cw = [0, 1, 2, 3].map((i) => measure(to[i], size, SANS, 700, ls));
+  const cwF = [0, 1, 2, 3].map((i) => measure(from[i], size, SANS, 700, ls));
+  for (let i = 0; i < 4; i++) {
+    const start = 0.3 + i * 0.22, k = prog(lt, start, start + 0.45);
+    let ch, col;
+    if (k <= 0) { ch = from[i]; col = C.wild; }
+    else if (k < 1) { ch = k > 0.7 ? to[i] : scramble(i, t); col = mixColor(C.wild, C.tech, k); }
+    else { ch = to[i]; col = C.tech; }
+    const w = lerp(cwF[i], cw[i], E.inOutCubic(k));
+    const bump = k > 0 && k < 1 ? Math.sin(k * Math.PI) * 26 : 0;
+    text(ch, x + w / 2, 700 - bump, { size, weight: 700, color: col, ls });
+    x += w;
+  }
+  // sottolineatura tech
+  const u = E.outExpo(prog(lt, 1.4, 2.0));
+  g.fillStyle = C.tech; g.fillRect(W / 2 - 560 * u, 770, 1120 * u, 8);
+  text("born to be tech.", W / 2, 880, { size: 44, font: MONO, weight: 500, ls: 6, color: C.fg, alpha: E.outCubic(prog(lt, 1.6, 2.1)) });
+}
+
+// C — STACK (5.5 → 9.0)
+const ROWWORDS = [
+  "ANGULAR ✦ REACT ✦ VUE ✦ NEXT.JS ✦ TYPESCRIPT ✦ ",
+  "NODE.JS ✦ SPRING BOOT ✦ JAVA ✦ EXPRESS ✦ PHP ✦ ",
+  "DOCKER ✦ KUBERNETES ✦ AWS SQS ✦ REDIS ✦ GIT ✦ ",
+  "POSTGRESQL ✦ ORACLE ✦ MONGODB ✦ CLICKHOUSE ✦ MYSQL ✦ ",
+];
+const ROWY = [150, 330, 810, 990];
+const SLOT = [
+  { w: "FRONT-END", c: C.fg }, { w: "BACK-END", c: C.wild }, { w: "CLOUD", c: C.tech }, { w: "FULL-STACK", c: C.fg },
+];
+function sceneC(t) {
+  const lt = t - CUTS[1];
+  drawParticles(t, 1, 0.13, C.tech);
+  drawGridLines(0.07, 1);
+  // righe marquee, velocità crescente
+  for (let r = 0; r < 4; r++) {
+    const dir = r % 2 ? 1 : -1;
+    const sp = 260 + 520 * lt * lt * 0.18 + r * 60;
+    const str = ROWWORDS[r].repeat(3);
+    const w1 = measure(ROWWORDS[r], 118, SANS, 700, 2);
+    let off = ((lt * sp * dir) % w1 + w1) % w1;
+    const enter = E.outExpo(prog(lt, 0.0 + r * 0.08, 0.6 + r * 0.08));
+    g.save(); g.globalAlpha = enter;
+    text(str, -off - (dir > 0 ? 0 : 0), ROWY[r], { size: 118, align: "left", stroke: r % 2 ? C.tech : C.wild, lw: 1.6, ls: 2, alpha: 0.55 });
+    g.restore();
+  }
+  // slot al centro
+  g.save(); g.beginPath(); g.rect(0, 400, W, 280); g.clip();
+  const T0 = 0.15, STEP = 0.8;
+  SLOT.forEach((s, i) => {
+    const a = T0 + i * STEP, b = a + STEP;
+    const last = i === SLOT.length - 1;
+    const inK = E.outExpo(prog(lt, a, a + 0.28));
+    const outK = last ? 0 : E.inCubic(prog(lt, b - 0.2, b));
+    if (lt < a || (!last && lt > b)) return;
+    const y = 640 + lerp(180, 0, inK) - outK * 180;
+    // scala per far entrare "FULL-STACK" (più lungo) in larghezza
+    const size = i === 3 ? 250 : 270;
+    text(s.w, W / 2, y, { size, color: s.c, ls: -8, alpha: 1 - outK });
+  });
+  g.restore();
+  // contatore
+  const idx = clamp(Math.floor((lt - T0) / STEP), 0, 3) + 1;
+  text(`0${idx} / 04`, 90, 905, { size: 26, font: MONO, weight: 500, align: "left", color: C.dim, ls: 4 });
+  // riga di cornice
+  g.fillStyle = C.fg; g.globalAlpha = 0.5;
+  g.fillRect(W / 2 - 880 * E.outExpo(prog(lt, 0, 0.7)), 392, 1760 * E.outExpo(prog(lt, 0, 0.7)), 2);
+  g.fillRect(W / 2 - 880 * E.outExpo(prog(lt, 0, 0.7)), 686, 1760 * E.outExpo(prog(lt, 0, 0.7)), 2);
+  g.globalAlpha = 1;
+}
+
+// D — TERMINALE (9.0 → 11.5): "wild" e "tech" come due comandi
+function sceneD(t) {
+  const lt = t - CUTS[2];
+  drawParticles(t, 1, 0.1, C.tech);
+  const lines = [
+    { start: 0.1, parts: [["$ ", C.dim], ["mattia --born-to-be ", C.fg], ["wild", C.wild]] },
+    { start: 0.55, parts: [["> ", C.dim], ["curiosità ........ ", C.fg], ["ok", C.tech]] },
+    { start: 1.0, parts: [["$ ", C.dim], ["mattia --born-to-be ", C.fg], ["tech", C.tech]] },
+    { start: 1.45, parts: [["> ", C.dim], ["codice in produzione ", C.fg], ["ok", C.tech]] },
+  ];
+  const size = 62, lh = 112, x0 = 200, y0 = 360;
+  let lastX = x0, lastY = y0;
+  lines.forEach((ln, r) => {
+    const full = ln.parts.map((p) => p[0]).join("");
+    const n = Math.floor(prog(lt, ln.start, ln.start + 0.42) * full.length);
+    if (n <= 0) return;
+    let x = x0, used = 0;
+    ln.parts.forEach(([str, col]) => {
+      const take = Math.max(0, Math.min(str.length, n - used)); used += str.length;
+      if (take <= 0) return;
+      const seg = str.slice(0, take);
+      text(seg, x, y0 + r * lh, { size, font: MONO, weight: 600, align: "left", color: col });
+      x += measure(seg, size, MONO, 600, 0);
+    });
+    lastX = x; lastY = y0 + r * lh;
+  });
+  // cursore a blocchi
+  if (Math.floor(t * 3) % 2 === 0 || lt < 1.9) {
+    g.fillStyle = C.tech; g.fillRect(lastX + 8, lastY - 52, 30, 62);
+  }
+  // riquadro "finestra"
+  g.strokeStyle = C.dim; g.globalAlpha = 0.5; g.lineWidth = 2;
+  const k = E.outExpo(prog(lt, 0, 0.5));
+  g.strokeRect(140, 220, 1640 * k, 640); g.globalAlpha = 1;
+  [C.wild, C.fg, C.tech].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(190 + i * 38, 262, 10, 0, 6.283); g.fill(); });
+}
+
+// E — NOME (11.5 → 13.5): metà wild / metà tech
+function sceneE(t) {
+  const lt = t - CUTS[3];
+  const sx = lerp(W * 0.5, W * 0.5, 0) + Math.sin(lt * 2.2) * 120 * E.outCubic(prog(lt, 0.3, 1.2));
+  drawParticles(t, 0, 0.55, C.wild, [0, 0, sx, H]);
+  drawParticles(t, 1, 0.8, C.tech, [sx, 0, W - sx, H]);
+  g.fillStyle = C.fg; g.globalAlpha = 0.6; g.fillRect(sx - 1, 0, 2, H * E.outExpo(prog(lt, 0, 0.5))); g.globalAlpha = 1;
+  text("WILD", sx - 40, 120, { size: 28, font: MONO, weight: 600, align: "right", color: C.wild, ls: 8 });
+  text("TECH", sx + 40, 120, { size: 28, font: MONO, weight: 600, align: "left", color: C.tech, ls: 8 });
+  // nome con maschera per riga
+  const lines = ["MATTIA", "SELVAGGIO"];
+  lines.forEach((ln, r) => {
+    const size = 270, y = 520 + r * 250;
+    const wTot = measure(ln, size, SANS, 700, -8);
+    g.save(); g.beginPath(); g.rect(0, y - 220, W, 270); g.clip();
+    let x = W / 2 - wTot / 2;
+    for (let i = 0; i < ln.length; i++) {
+      const cw = measure(ln[i], size, SANS, 700, -8);
+      const k = E.outExpo(prog(lt, 0.1 + r * 0.25 + i * 0.045, 0.6 + r * 0.25 + i * 0.045));
+      // il confine split colora le lettere: sinistra wild-ish, destra tech-ish
+      const cxc = x + cw / 2;
+      const col = cxc < sx ? mixColor(C.fg, C.wild, 0.0) : C.fg;
+      text(ln[i], cxc, y + (1 - k) * 280, { size, color: col, ls: -8 });
+      x += cw;
+    }
+    g.restore();
+  });
+  text("SOFTWARE ENGINEER  ·  TORINO", W / 2, 940, { size: 36, font: MONO, weight: 500, ls: 10, alpha: E.outCubic(prog(lt, 0.9, 1.4)) });
+}
+
+// F — LOCKUP (13.5 → 15.0)
+function sceneF(t) {
+  const lt = t - CUTS[4];
+  drawParticles(t, 1, 0.1, C.tech);
+  const l1 = "born to be wild.", l2 = "born to be tech.";
+  const n1 = Math.floor(prog(lt, 0.05, 0.4) * l1.length), n2 = Math.floor(prog(lt, 0.45, 0.85) * l2.length);
+  const size = 190;
+  const wL = measure(l2, size, SANS, 700, -5);
+  const x0 = W / 2 - wL / 2;
+  text(l1.slice(0, n1), x0, 470, { size, align: "left", ls: -5, color: C.wild });
+  text(l2.slice(0, n2), x0, 690, { size, align: "left", ls: -5, color: C.tech });
+  const u = E.outExpo(prog(lt, 0.9, 1.3));
+  text("borntobewild.tech", W / 2, 850, { size: 54, font: MONO, weight: 500, ls: 6, alpha: u });
+  const caret = Math.floor(t * 3) % 2 ? 1 : 0;
+  g.fillStyle = C.fg; g.globalAlpha = u * caret;
+  g.fillRect(W / 2 + measure("borntobewild.tech", 54, MONO, 500, 6) / 2 + 6, 810, 26, 46); g.globalAlpha = 1;
+  // fade finale per il loop
+  const f = prog(t, 14.75, 15);
+  g.fillStyle = C.bg; g.globalAlpha = f; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+}
+
+/* ---------- HUD + transizioni ---------- */
+function hud(t) {
+  g.save();
+  text("BORN TO BE WILD — BORN TO BE TECH", 60, 62, { size: 20, font: MONO, weight: 500, align: "left", color: C.dim, ls: 4 });
+  const s = Math.floor(t), f = Math.floor((t % 1) * 30);
+  text(`00:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")}`, W - 60, 62, { size: 20, font: MONO, weight: 500, align: "right", color: C.dim, ls: 4 });
+  text("MATTIA SELVAGGIO", 60, H - 40, { size: 20, font: MONO, weight: 500, align: "left", color: C.dim, ls: 4 });
+  g.fillStyle = C.fg; g.globalAlpha = 0.9; g.fillRect(0, H - 6, W * (t / DUR), 6); g.globalAlpha = 1;
+  // crocini d'angolo
+  g.strokeStyle = C.dim; g.lineWidth = 2;
+  [[36, 36, 1, 1], [W - 36, 36, -1, 1], [36, H - 36, 1, -1], [W - 36, H - 36, -1, -1]].forEach(([x, y, dx, dy]) => {
+    g.beginPath(); g.moveTo(x, y + 26 * dy); g.lineTo(x, y); g.lineTo(x + 26 * dx, y); g.stroke();
+  });
+  g.restore();
+}
+function wipe(t) {
+  const D = 0.22;
+  CUTS.forEach((c, i) => {
+    const d = t - c;
+    if (d > -D && d < 0) { // copre
+      const k = E.inOutCubic((d + D) / D);
+      g.fillStyle = CUT_COL[i]; g.fillRect(0, 0, W * k, H);
+    } else if (d >= 0 && d < D) { // scopre
+      const k = E.inOutCubic(d / D);
+      g.fillStyle = CUT_COL[i]; g.fillRect(W * k, 0, W * (1 - k), H);
+    }
+  });
+}
+
+/* ---------- frame ---------- */
+function renderFrame(t) {
+  t = clamp(t, 0, DUR - 1e-4);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1;
+  g.fillStyle = C.bg; g.fillRect(0, 0, W, H);
+  // leggero respiro di camera
+  g.save();
+  const z = 1 + 0.012 * Math.sin(t * 0.9);
+  g.translate(W / 2, H / 2); g.scale(z, z); g.translate(-W / 2, -H / 2);
+  if (t < CUTS[0]) sceneA(t);
+  else if (t < CUTS[1]) sceneB(t);
+  else if (t < CUTS[2]) sceneC(t);
+  else if (t < CUTS[3]) sceneD(t);
+  else if (t < CUTS[4]) sceneE(t);
+  else sceneF(t);
+  g.restore();
+  hud(t);
+  wipe(t);
+}
+window.renderFrame = renderFrame;
+window.DUR = DUR;
+
+/* ---------- live preview ---------- */
+window.fontsReady = Promise.all([
+  document.fonts.load(`700 100px "SG"`), document.fonts.load(`500 20px "JB"`),
+]).then(() => document.fonts.ready);
+if (!location.search.includes("render")) {
+  window.fontsReady.then(() => {
+    const t0 = performance.now();
+    (function loop(now) { renderFrame(((now - t0) / 1000) % DUR); requestAnimationFrame(loop); })(t0);
+  });
+}
+</script>
+</body>
+</html>

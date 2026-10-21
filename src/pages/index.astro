@@ -1,0 +1,172 @@
+---
+import Base from "../layouts/Base.astro";
+import Showreel from "../components/Showreel.astro";
+import { person, jobs, skills, education, courses } from "../data/cv";
+
+const nav = [
+  { href: "#chi-sono", label: "Chi sono" },
+  { href: "#competenze", label: "Competenze" },
+  { href: "#esperienza", label: "Esperienza" },
+  { href: "#contatti", label: "Contatti" },
+];
+const year = new Date().getFullYear();
+---
+<Base
+  title="Mattia Selvaggio · Sviluppatore full-stack a Torino"
+  description="Mattia Selvaggio, software engineer full-stack a Torino. Back-end solidi in Node.js e Java, interfacce pulite in Angular e React. Scopri cosa posso costruire per te."
+>
+  <header class="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
+    <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
+      <a href="#top" class="font-display text-lg font-bold tracking-tight">
+        Mattia<span class="text-wild">.</span>
+      </a>
+      <nav aria-label="Principale">
+        <ul class="flex items-center gap-1 text-sm sm:gap-3">
+          {nav.map((n) => (
+            <li class="hidden sm:block">
+              <a href={n.href} class="rounded-md px-3 py-2 text-muted transition-colors hover:text-ink">{n.label}</a>
+            </li>
+          ))}
+          <li>
+            <a href="#contatti" class="rounded-full bg-ink px-4 py-2 font-medium text-paper transition-colors hover:bg-tech">Scrivimi</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenuto">
+    <!-- HERO -->
+    <section id="top" class="mx-auto max-w-5xl px-5 pb-16 pt-14 sm:pt-24">
+      <p class="eyebrow">Software Engineer full-stack · {person.city}</p>
+      <h1 class="mt-5 font-display text-5xl font-bold leading-[0.98] tracking-tighter sm:text-7xl">
+        <span class="text-wild">Born to be wild.</span><br />
+        <span class="text-tech">Born to be tech.</span>
+      </h1>
+      <p class="mt-6 max-w-xl text-lg leading-relaxed text-muted">
+        Ciao, sono <strong class="font-semibold text-ink">Mattia</strong>. Trasformo idee in software che funziona:
+        back-end solidi, interfacce pulite e un debole per le architetture fatte bene.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="#contatti" class="rounded-full bg-ink px-6 py-3 font-medium text-paper transition-colors hover:bg-tech">Parliamone</a>
+        <a href="#esperienza" class="rounded-full border border-ink/20 px-6 py-3 font-medium transition-colors hover:border-ink">Guarda cosa ho fatto</a>
+      </div>
+      <div class="mt-14"><Showreel /></div>
+    </section>
+
+    <!-- CHI SONO -->
+    <section id="chi-sono" class="mx-auto grid max-w-5xl gap-8 px-5 py-20 sm:grid-cols-[1fr_2fr] sm:py-28">
+      <div>
+        <p class="eyebrow">Chi sono</p>
+        <h2 class="h2 mt-3">Metà curioso, metà metodico. Sempre con le mani nel codice.</h2>
+      </div>
+      <div class="space-y-5 text-lg leading-relaxed text-muted">
+        <p>
+          Sono un <strong class="font-semibold text-ink">full-stack</strong>: passo dal back-end in Node.js e Java alle interfacce
+          in Angular, React e Vue, fino al cloud dove tutto va in produzione.
+        </p>
+        <p>
+          Ho guidato team, parlato con i clienti e scritto documentazione. Ma la tastiera non l'ho mai mollata:
+          il codice resta la parte che mi diverte di più.
+        </p>
+        <p>
+          Oggi lavoro nel mondo dei pagamenti, tra transazioni, crittografia e sistemi che non possono sbagliare.
+          Mi piace capire come funzionano le cose. E poi costruirle bene.
+        </p>
+      </div>
+    </section>
+
+    <!-- COMPETENZE -->
+    <section id="competenze" class="border-t border-line bg-white">
+      <div class="mx-auto max-w-5xl px-5 py-20 sm:py-28">
+        <p class="eyebrow">Competenze</p>
+        <h2 class="h2 mt-3 max-w-2xl">Il mio kit di lavoro.</h2>
+        <ul class="mt-12 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
+          {skills.map((s, i) => (
+            <li class="bg-white p-7">
+              <p class="font-mono text-xs text-muted">0{i + 1}</p>
+              <h3 class="mt-2 font-display text-2xl font-bold tracking-tight">{s.title}</h3>
+              <p class="mt-1 text-muted">{s.note}</p>
+              <ul class="mt-5 flex flex-wrap gap-2">
+                {s.items.map((it) => (
+                  <li class="rounded-full border border-line bg-paper px-3 py-1 text-sm">{it}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <!-- ESPERIENZA -->
+    <section id="esperienza" class="mx-auto max-w-5xl px-5 py-20 sm:py-28">
+      <p class="eyebrow">Esperienza</p>
+      <h2 class="h2 mt-3 max-w-2xl">Il mio percorso, un progetto alla volta.</h2>
+      <ol class="mt-12 divide-y divide-line border-y border-line">
+        {jobs.map((j) => (
+          <li class="grid gap-4 py-9 sm:grid-cols-[220px_1fr] sm:gap-10">
+            <div>
+              <p class="font-mono text-sm text-muted">{j.period}</p>
+              {j.current && <p class="mt-2 inline-block rounded-full bg-tech px-3 py-0.5 text-xs font-semibold text-white">Ruolo attuale</p>}
+            </div>
+            <div>
+              <h3 class="font-display text-2xl font-bold tracking-tight">{j.role}</h3>
+              <p class="text-muted">{j.company}</p>
+              <p class="mt-3 text-lg">{j.summary}</p>
+              <ul class="mt-4 space-y-2 text-muted">
+                {j.points.map((p) => (
+                  <li class="flex gap-3"><span aria-hidden="true" class="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-wild"></span>{p}</li>
+                ))}
+              </ul>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <!-- FORMAZIONE -->
+    <section id="formazione" class="border-t border-line bg-white">
+      <div class="mx-auto grid max-w-5xl gap-10 px-5 py-20 sm:grid-cols-2 sm:py-28">
+        <div>
+          <p class="eyebrow">Formazione</p>
+          <p class="mt-3 text-sm text-muted">Dall'università ai corsi: continuo a studiare.</p>
+          <h2 class="h2 mt-2">{education.degree}</h2>
+          <p class="mt-2 text-muted">{education.school}</p>
+          <p class="mt-4 text-muted"><span class="font-medium text-ink">Tesi:</span> {education.thesis}.</p>
+        </div>
+        <div>
+          <p class="eyebrow">Corsi</p>
+          <ul class="mt-4 divide-y divide-line">
+            {courses.map((c) => <li class="py-3">{c}</li>)}
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTATTI -->
+    <section id="contatti" class="bg-ink text-paper">
+      <div class="mx-auto max-w-5xl px-5 py-20 sm:py-28">
+        <p class="eyebrow !text-paper/70">Contatti</p>
+        <h2 class="mt-3 font-display text-4xl font-bold leading-tight tracking-tighter sm:text-6xl">
+          Hai un'idea?<br /><span class="text-wild-bright">Parliamone.</span>
+        </h2>
+        <p class="mt-6 max-w-xl text-lg text-paper/80">
+          Un progetto, una collaborazione o solo una curiosità: scrivimi. Niente moduli e niente attese, rispondo di persona.
+        </p>
+        <div class="mt-10 flex flex-wrap gap-3">
+          <a href={`mailto:${person.email}`} class="rounded-full bg-tech-bright px-6 py-3 font-semibold text-ink transition-colors hover:bg-white">Scrivimi</a>
+          <a href={person.linkedin} rel="noopener noreferrer" target="_blank" class="rounded-full border border-paper/30 px-6 py-3 font-medium transition-colors hover:border-paper">
+            LinkedIn<span class="sr-only"> (si apre in una nuova scheda)</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-ink pb-10 text-sm text-paper/70">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 border-t border-paper/15 px-5 pt-6">
+      <p>© {year} {person.name} · {person.city}</p>
+      <p class="font-mono">{person.domain}</p>
+    </div>
+  </footer>
+</Base>

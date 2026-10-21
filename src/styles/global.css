@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --font-display: "Space Grotesk Variable", system-ui, sans-serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-paper: #fafaf7;
+  --color-ink: #0b0b0c;
+  --color-muted: #55555a;
+  --color-line: #e3e1da;
+  --color-wild: #c2410c; /* testo: contrasto 5.2:1 su paper */
+  --color-tech: #0f766e; /* testo: contrasto 5.5:1 su paper */
+  --color-wild-bright: #ff5a1f;
+  --color-tech-bright: #2dffb2;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+  body { @apply bg-paper font-sans text-ink antialiased; }
+  :focus-visible { outline: 3px solid var(--color-tech); outline-offset: 3px; border-radius: 4px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+}
+
+.eyebrow { @apply font-mono text-xs font-medium uppercase tracking-[0.2em] text-muted; }
+.h2 { @apply font-display text-3xl font-bold tracking-tight sm:text-4xl; }
+.link { @apply underline decoration-line decoration-2 underline-offset-4 transition-colors hover:decoration-wild; }
