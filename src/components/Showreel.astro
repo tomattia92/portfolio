@@ -1,11 +1,12 @@
 ---
 // Showreel 15s. Parte da solo (muto, in loop) a meno che l'utente preferisca meno animazioni.
+import { withBase } from "../lib/url";
 ---
 <figure class="relative overflow-hidden rounded-2xl bg-ink shadow-[0_30px_80px_-30px_rgba(0,0,0,.45)]">
   <video
     id="showreel"
     class="aspect-video w-full"
-    poster="/video/poster.jpg"
+    poster={withBase("video/poster.jpg")}
     width="1920"
     height="1080"
     muted
@@ -14,9 +15,9 @@
     preload="metadata"
     aria-label="Showreel di 15 secondi: «born to be wild, born to be tech», tra motion design e codice"
   >
-    <source src="/video/showreel.webm" type="video/webm" />
-    <source src="/video/showreel.mp4" type="video/mp4" />
-    Il tuo browser non supporta i video. <a href="/video/showreel.mp4">Scarica lo showreel</a>.
+    <source src={withBase("video/showreel.webm")} type="video/webm" />
+    <source src={withBase("video/showreel.mp4")} type="video/mp4" />
+    Il tuo browser non supporta i video. <a href={withBase("video/showreel.mp4")}>Scarica lo showreel</a>.
   </video>
   <figcaption class="sr-only">Showreel: da «wild» a «tech» in 15 secondi, tra tipografia in movimento, tecnologie e codice.</figcaption>
 </figure>
