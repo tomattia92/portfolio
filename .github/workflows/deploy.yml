@@ -17,10 +17,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Temporaneo: da togliere quando borntobewild.tech è collegato.
-    env:
-      SITE_URL: https://tomattia92.github.io
-      BASE_PATH: /portfolio
     steps:
       - uses: actions/checkout@v4
       - uses: withastro/action@v3
